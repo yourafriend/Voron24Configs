@@ -1,3 +1,7 @@
+[include mmu/base/*.cfg]
+
+[include mmu/optional/client_macros.cfg]
+[include mmu/addons/dc_espooler.cfg]
 [force_move]
 enable_force_move: True
 # This file contains common pin mappings for the BigTreeTech Octopus V1.
@@ -67,7 +71,7 @@ position_endstop: 350
 position_max: 350
 
 ##--------------------------------------------------------------------
-homing_speed: 80   #Max 100
+homing_speed: 40   #Max 100
 homing_retract_dist: 0
 homing_positive_dir: true
 
@@ -79,7 +83,7 @@ run_current: 0.8
 sense_resistor: 0.110
 stealthchop_threshold: 0
 diag_pin: ^PG6
-driver_SGTHRS: 175
+driver_SGTHRS: 142
 
 ##  A Stepper - Right
 ##  Connected to MOTOR_1
@@ -108,7 +112,7 @@ position_endstop: 350
 position_max: 350
 
 ##--------------------------------------------------------------------
-homing_speed: 80  #Max 100
+homing_speed: 40  #Max 100
 homing_retract_dist: 0
 homing_positive_dir: true
 
@@ -120,7 +124,7 @@ run_current: 0.8
 sense_resistor: 0.110
 stealthchop_threshold: 0
 diag_pin: ^PG9
-driver_SGTHRS: 174
+driver_SGTHRS: 145
  
 #####################################################################
 #   Z Stepper Settings
@@ -260,16 +264,14 @@ max_temp: 350
 max_power: 1.0
 min_extrude_temp: 170
 control: pid
-pid_Kp: 30.115
-pid_Ki: 3.346
-pid_Kd: 67.759
-
+pid_kp: 29.902
+pid_ki: 3.624
+pid_kd: 61.674
 ##  Try to keep pressure_advance below 1.0
 pressure_advance: 0.042
 ##  Default is 0.040, leave stock
 pressure_advance_smooth_time: 0.040
 max_extrude_cross_section: 5
-max_extrude_only_distance: 120.0
 ##  E0 on MOTOR6
 ##  Make sure to update below for your relevant driver (2208 or 2209)
 [tmc2209 extruder]
@@ -314,7 +316,7 @@ check_gain_time: 600
 
 [beacon]
 serial: /dev/serial/by-id/usb-Beacon_Beacon_RevH_74AA57195154354D38202020FF0A300C-if00
-contact_max_hotend_temperature: 200 # increase to probe at print temps
+contact_max_hotend_temperature: 310 # increase to probe at print temps
 lift_speed: 50
 z_settling_time: 200
 speed: 35
@@ -324,7 +326,6 @@ home_z_hop_speed: 30
 home_xy_move_speed: 300
 home_method: proximity # use proximity for induction homing
 home_method_when_homed: proximity # after initial calibration use induction
-home_y_before_x: false
 home_autocalibrate: never # contact will calibrate beacon on first home
 home_gcode_pre_x: _HOME_PRE_AXIS AXIS=X
 home_gcode_post_x: _HOME_POST_AXIS AXIS=X
@@ -519,12 +520,12 @@ horizontal_move_z: 10
 #mesh_max: 260,260
 
 ##	Uncomment for 350mm build
-mesh_min: 40, 10
-mesh_max: 310,290
+mesh_min: 40, 40
+mesh_max: 310,310
 ##--------------------------------------------------------------------
 fade_start: 0.6
 fade_end: 10.0
-probe_count: 49,49 # Values should be odd, so one point is directly at bed center
+probe_count: 7,7 # Values should be odd, so one point is directly at bed center
 algorithm: bicubic
 ##relative_reference_index: 24 # Update when changing probe_count, to ((x points * y points) - 1) / 2. (the center point)
 zero_reference_position: 175,175
@@ -599,7 +600,7 @@ shaper_freq_y: 34.8
 shaper_type_y: mzv
 
 
-#[shaketune]
+[shaketune]
 # result_folder: ~/printer_data/config/ShakeTune_results
 #    The folder where the results will be stored. It will be created if it doesn't exist.
 # number_of_results_to_keep: 3
@@ -613,9 +614,6 @@ shaper_type_y: mzv
 #    printer.cfg file. If you want to see the macros in the webui, set this to True.
 # timeout: 300
 #    The maximum time in seconds to let Shake&Tune process the CSV files and generate the graphs.
-
-[skew_correction]
-
 
 #####################################################################
 #   Macros
@@ -647,38 +645,25 @@ gcode:
 gcode:
     {% set target_bed = params.BED|int %}
     {% set target_extruder = params.EXTRUDER|int %}
-    {% set initial_tool = params.TOOL|default("0")|int %}
     BED_MESH_CLEAR
-    SKEW_PROFILE LOAD=CaliFlower
     SET_GCODE_OFFSET Z=0
     G28 METHOD=PROXIMITY                            ; home all axes
-    QUAD_GANTRY_SCAN
     #SETUP_KAMP_MESHING DISPLAY_PARAMETERS=1
     SETUP_VORON_PURGE DISPLAY_PARAMETERS=1
-    AFC_BRUSH
     G28 Z METHOD=CONTACT CALIBRATE=0
     G90
     G0 Z2
-    
-    AFC_PARK
-    M140 S{target_bed}
-    M109 S{target_extruder}
-    T{initial_tool}
-  
+    M190 S{target_bed}
     M106 S255
     M109 S150
-    M190 S{target_bed}
-    AFC_BRUSH
     G28 Z METHOD=CONTACT CALIBRATE=1
     QUAD_GANTRY_SCAN
     BED_MESH_CALIBRATE ADAPTIVE=1 RUNS=2
     G28 Z METHOD=CONTACT CALIBRATE=0
     M107
     M104 S{target_extruder}
-    AFC_PARK
     M109 S{target_extruder}
-    SET_GCODE_OFFSET Z=0.04
-    AFC_BRUSH
+    SET_GCODE_OFFSET Z=0.010
     VORON_PURGE
     #G90                            ; absolute positioning
     #G1 Z1 F3000                   ; move nozzle away from bed
@@ -707,7 +692,6 @@ gcode:
     M107                                     ; turn off fan
     
     BED_MESH_CLEAR
-    SET_SKEW CLEAR=1
     RESTORE_GCODE_STATE NAME=STATE_PRINT_END
 
 [include homing.cfg]
@@ -722,22 +706,18 @@ gcode:
 
 #[include nitehawk-sb.cfg]
 
-[include K-ShakeTune/*.cfg]
+##[include K-ShakeTune/*.cfg]
 
 ##[include moonraker_obico_macros.cfg]
-
-[include AFC/*.cfg]
-
-#[include blobifier/blobifier.cfg]
-
-#[include pooper.cfg]
-
-[include goose_belt.cfg]
 
 #*# <---------------------- SAVE_CONFIG ---------------------->
 #*# DO NOT EDIT THIS BLOCK OR BELOW. The contents are auto-generated.
 #*#
 #*# [heater_bed]
+#*# control = pid
+#*# pid_kp = 63.439
+#*# pid_ki = 1.596
+#*# pid_kd = 630.427
 #*#
 #*# [extruder]
 #*#
@@ -746,53 +726,35 @@ gcode:
 #*# [bed_mesh default]
 #*# version = 1
 #*# points =
-#*# 	  0.007781, 0.014555, 0.018154, 0.014998, 0.015745, 0.010913, 0.013129, 0.013516, 0.015016, 0.014971, 0.013892, 0.012045, 0.009726, 0.005912, 0.002245, -0.001891
-#*# 	  0.009357, 0.012778, 0.015202, 0.013107, 0.011873, 0.010327, 0.010910, 0.011617, 0.012633, 0.012915, 0.013402, 0.012238, 0.008589, 0.006914, 0.003221, 0.000892
-#*# 	  0.008118, 0.009929, 0.013536, 0.009393, 0.011615, 0.008437, 0.009632, 0.010368, 0.012398, 0.011021, 0.012305, 0.010380, 0.008748, 0.006790, 0.000877, 0.002877
-#*# 	  0.006476, 0.009103, 0.010988, 0.009111, 0.009110, 0.007011, 0.008683, 0.010072, 0.010390, 0.010710, 0.010520, 0.011657, 0.008598, 0.008143, 0.003929, 0.003025
-#*# 	  0.004333, 0.007479, 0.008205, 0.008476, 0.006123, 0.006333, 0.006277, 0.008792, 0.008865, 0.010555, 0.009527, 0.010877, 0.007106, 0.008493, 0.004803, 0.004830
-#*# 	  0.002489, 0.008397, 0.008078, 0.006934, 0.004726, 0.005254, 0.003587, 0.008403, 0.007527, 0.010547, 0.007495, 0.009074, 0.005498, 0.008450, 0.003191, 0.005809
-#*# 	  0.002078, 0.007922, 0.006590, 0.007300, 0.003873, 0.003787, 0.003665, 0.007241, 0.007444, 0.010590, 0.007459, 0.010475, 0.006940, 0.008544, 0.004631, 0.007528
-#*# 	  0.001900, 0.009176, 0.007807, 0.009083, 0.003858, 0.005800, 0.004270, 0.009882, 0.007807, 0.013246, 0.009585, 0.012686, 0.007928, 0.010473, 0.005138, 0.009132
-#*# 	  0.004175, 0.011129, 0.010531, 0.012233, 0.006490, 0.008039, 0.006951, 0.012784, 0.010463, 0.016477, 0.013114, 0.016129, 0.010546, 0.013606, 0.007026, 0.012079
-#*# 	  0.006060, 0.014551, 0.011203, 0.014341, 0.009844, 0.012614, 0.008944, 0.014458, 0.012017, 0.017491, 0.014106, 0.019075, 0.012906, 0.015891, 0.008896, 0.014302
-#*# 	  0.009175, 0.015911, 0.014398, 0.017685, 0.011814, 0.013870, 0.011085, 0.016514, 0.014910, 0.018955, 0.016550, 0.020809, 0.015688, 0.017497, 0.010930, 0.017663
-#*# 	  0.014468, 0.020198, 0.018868, 0.021572, 0.016504, 0.019532, 0.014299, 0.020603, 0.017517, 0.023031, 0.019177, 0.024003, 0.019125, 0.020949, 0.014885, 0.021093
-#*# 	  0.019646, 0.024814, 0.022311, 0.025389, 0.019717, 0.021488, 0.019130, 0.023048, 0.020328, 0.025344, 0.022692, 0.026954, 0.021495, 0.024385, 0.017709, 0.024297
-#*# 	  0.024250, 0.029421, 0.026881, 0.027823, 0.024373, 0.024229, 0.022479, 0.026643, 0.024560, 0.027642, 0.025599, 0.029442, 0.026144, 0.025632, 0.021158, 0.027073
-#*# 	  0.027973, 0.030304, 0.029873, 0.029977, 0.026763, 0.025369, 0.024287, 0.028467, 0.027040, 0.030324, 0.029112, 0.033266, 0.028790, 0.028536, 0.023518, 0.028059
-#*# 	  0.030514, 0.035761, 0.033949, 0.034664, 0.030311, 0.030730, 0.028106, 0.032889, 0.031979, 0.035157, 0.033480, 0.036501, 0.031381, 0.031420, 0.026428, 0.029814
-#*# x_count = 16
-#*# y_count = 16
+#*# 	-0.001049, 0.002701, -0.011049, -0.007299
+#*# 	-0.013549, 0.001451, -0.003549, -0.007299
+#*# 	-0.006049, 0.013951, 0.007701, 0.001451
+#*# x_count = 4
+#*# y_count = 3
 #*# mesh_x_pps = 2
 #*# mesh_y_pps = 2
-#*# algo = bicubic
+#*# algo = lagrange
 #*# tension = 0.2
-#*# min_x = 133.61
-#*# max_x = 216.39
-#*# min_y = 134.142
-#*# max_y = 215.858
+#*# min_x = 122.5
+#*# max_x = 227.5
+#*# min_y = 162.3
+#*# max_y = 187.68
 #*#
 #*# [probe]
 #*# z_offset = -1.360
 #*#
 #*# [beacon model default]
-#*# model_coef = 1.5576276379082539,
-#*# 	  1.9278521356947569,
-#*# 	  0.8017788950975016,
-#*# 	  0.3723557005828006,
-#*# 	  0.24669647360035143,
-#*# 	  0.029514435984611447,
-#*# 	  -0.21049363221114087,
-#*# 	  0.0173440623319996,
-#*# 	  0.20385498232589483,
-#*# 	  0.05559341879515293
-#*# model_domain = 1.8623691633386962e-07,1.9397592101244735e-07
-#*# model_range = 0.199583,4.999583
-#*# model_temp = 37.761451
+#*# model_coef = 1.4420326692790253,
+#*# 	1.7857576250709317,
+#*# 	0.7937768484533875,
+#*# 	0.4089212184686492,
+#*# 	0.520488618818478,
+#*# 	0.47876130057440225,
+#*# 	-0.518133617274951,
+#*# 	-0.6715606609797982,
+#*# 	0.3618547219701558,
+#*# 	0.39971780421919473
+#*# model_domain = 1.8063938641720984e-07,1.932809353874809e-07
+#*# model_range = 0.200000,5.000000
+#*# model_temp = 25.710568
 #*# model_offset = 0.00000
-#*#
-#*# [skew_correction CaliFlower]
-#*# xy_skew = 0.0011038148406335236
-#*# xz_skew = 0.0
-#*# yz_skew = 0.0
